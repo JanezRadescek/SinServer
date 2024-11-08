@@ -1,4 +1,4 @@
-package com.example.sin;
+package com.example.server.sin;
 
 public class InternalError extends RuntimeException {
     public InternalError(Throwable cause) {

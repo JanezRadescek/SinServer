@@ -1,4 +1,4 @@
-package com.example.strategy;
+package com.example.server.dtos;
 
 public enum Strategy {
     FINISH,

@@ -1,5 +1,6 @@
-package com.example.strategy;
+package com.example.server.strategy;
 
+import com.example.server.dtos.Strategy;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;

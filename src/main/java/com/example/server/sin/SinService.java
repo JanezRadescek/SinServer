@@ -1,5 +1,8 @@
-package com.example.sin;
+package com.example.server.sin;
 
+import com.example.server.dtos.Msg;
+import com.example.server.dtos.MsgType;
+import com.example.server.dtos.Task;
 import io.quarkus.logging.Log;
 import io.vertx.core.impl.ConcurrentHashSet;
 import jakarta.enterprise.context.ApplicationScoped;

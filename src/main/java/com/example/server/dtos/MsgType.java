@@ -1,4 +1,4 @@
-package com.example.sin;
+package com.example.server.dtos;
 
 public enum MsgType {
     NEW_TASK,

@@ -1,6 +1,6 @@
-package com.example;
+package com.example.server;
 
-import com.example.strategy.Strategy;
+import com.example.server.dtos.Strategy;
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;
 

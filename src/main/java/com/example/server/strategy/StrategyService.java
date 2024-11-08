@@ -1,5 +1,6 @@
-package com.example.strategy;
+package com.example.server.strategy;
 
+import com.example.server.dtos.Strategy;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.util.HashSet;

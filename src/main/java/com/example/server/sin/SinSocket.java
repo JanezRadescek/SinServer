@@ -1,5 +1,6 @@
-package com.example.sin;
+package com.example.server.sin;
 
+import com.example.server.dtos.Msg;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
