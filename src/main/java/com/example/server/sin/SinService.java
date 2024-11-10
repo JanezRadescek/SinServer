@@ -79,8 +79,6 @@ public class SinService {
 
     private void cancelTask(Msg msg, Consumer<Msg> broadCastTask) {
         cancellationMap.put(msg.id(), true);
-        var newMsg = new Msg(MsgType.CANCELED, msg.id(), null, null);
-        broadCastTask.accept(newMsg);
     }
 
 
