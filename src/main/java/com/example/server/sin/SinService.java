@@ -84,6 +84,7 @@ public class SinService {
 
     private static Task sinOneStep(Task task) {
         double x = task.input();
+//        x = x % (2 * Math.PI); // Technically, it converges on the whole ℝ, so ¯\_(ツ)_/¯. Since we are technical, it's not even in line with the task.
         double term = task.term();
         int step = task.step();
         double newTerm = step == 0 ? x : sinOneTerm(term, x, step);
