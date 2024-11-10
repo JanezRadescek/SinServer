@@ -4,9 +4,9 @@ import com.example.server.dtos.Msg;
 import com.example.server.dtos.MsgType;
 import com.example.server.dtos.Task;
 import io.quarkus.logging.Log;
-import io.vertx.core.impl.ConcurrentHashSet;
 import jakarta.enterprise.context.ApplicationScoped;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -17,16 +17,20 @@ public class SinService {
 
     private ExecutorService executorService = Executors.newCachedThreadPool();
     private final ConcurrentHashMap<String, Boolean> cancellationMap = new ConcurrentHashMap<>();
-    private final ConcurrentHashSet<String> taskIds = new ConcurrentHashSet<>();
+    private final ConcurrentHashMap<String, Msg> activeTask = new ConcurrentHashMap<>();
 
     public void handleMsg(Msg msg, Consumer<Msg> broadCastTask) {
         executorService.submit(() -> {
             switch (msg.type()) {
                 case NEW_TASK -> handleNewTask(msg, broadCastTask);
-                case CANCEL -> cancelTask(msg, broadCastTask);
+                case CANCEL -> cancelTask(msg);
                 default -> broadCastTask.accept(new Msg(msg.type(), msg.id(), null, "Unsupported msg type."));
             }
         });
+    }
+
+    public List<Msg> getActiveTasks() {
+        return List.copyOf(activeTask.values());
     }
 
     private void handleNewTask(Msg msg, Consumer<Msg> broadCastTask) {
@@ -36,7 +40,7 @@ public class SinService {
         if (!validMsg) {
             return;
         }
-        taskIds.add(msg.id());
+        activeTask.put(msg.id(), msg);
         var start = System.currentTimeMillis();
         while (currentTask.step() < currentTask.required_steps()) {
             if (Boolean.TRUE.equals(cancellationMap.getOrDefault(msg.id(), false))) {
@@ -45,6 +49,7 @@ public class SinService {
                 return;
             }
             currentTask = sinOneStep(currentTask);
+            activeTask.put(msg.id(), new Msg(MsgType.PARTIAL, msg.id(), currentTask, null));
             if (System.currentTimeMillis() - start >= 1000) {
                 var newMsg = new Msg(MsgType.PARTIAL, msg.id(), currentTask, null);
                 broadCastTask.accept(newMsg);
@@ -53,12 +58,16 @@ public class SinService {
         }
         var newMsg = new Msg(MsgType.RESULT, msg.id(), currentTask, null);
         broadCastTask.accept(newMsg);
-        taskIds.remove(msg.id());
+        activeTask.remove(msg.id());
     }
 
     private boolean validateNewTaskMsg(Msg msg, Consumer<Msg> broadCastTask) {
-
-        if (taskIds.contains(msg.id())) {
+        if(msg.id() == null) {
+            var newMsg = new Msg(MsgType.CANCELED, null, null, "Task id is null.");
+            broadCastTask.accept(newMsg);
+            return false;
+        }
+        if (activeTask.contains(msg.id())) {
             var newMsg = new Msg(MsgType.CANCELED, msg.id(), null, "Task id already exists.");
             broadCastTask.accept(newMsg);
             return false;
@@ -77,7 +86,7 @@ public class SinService {
         return true;
     }
 
-    private void cancelTask(Msg msg, Consumer<Msg> broadCastTask) {
+    private void cancelTask(Msg msg) {
         cancellationMap.put(msg.id(), true);
     }
 
