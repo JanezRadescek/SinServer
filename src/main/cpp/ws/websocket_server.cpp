@@ -17,23 +17,22 @@ server ws_server;
 std::set<websocketpp::connection_hdl, std::owner_less<websocketpp::connection_hdl> > connections;
 std::mutex connections_mutex;
 
-
-void broadcast_message(server *s, const std::string &message, websocketpp::frame::opcode::value opcode) {
-    std::lock_guard lock(connections_mutex);
-    for (auto &conn: connections) {
-        s->send(conn, message, opcode);
-    }
-}
-
-
 void broadcast_message(const std::string &message) {
-    broadcast_message(&ws_server, message, websocketpp::frame::opcode::text);
+    std::lock_guard lock(connections_mutex);
+
+    std::cout << "Broadcasting message: " << message << std::endl;
+    for (auto &conn: connections) {
+        ws_server.send(conn, message, websocketpp::frame::opcode::text);
+    }
 }
 
 void on_message(websocketpp::connection_hdl, server::message_ptr msg) {
     std::string message = msg->get_payload();
     std::cout << "Received message: " << message << std::endl;
-    broadcast_message(&ws_server, message, msg->get_opcode());
+
+    std::thread([message]() {
+        process_and_broadcast(message, broadcast_message);
+    }).detach();
 }
 
 void on_http(websocketpp::connection_hdl hdl) {

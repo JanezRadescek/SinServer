@@ -9,8 +9,8 @@
 #include <websocketpp/server.hpp>
 #include <websocketpp/config/asio_no_tls.hpp>
 
-typedef websocketpp::server<websocketpp::config::asio> server;
+using server = websocketpp::server<websocketpp::config::asio>;
 
-void on_msg(server *s, websocketpp::connection_hdl hdl, server::message_ptr msg);
+void process_and_broadcast(const std::string &message, const std::function<void(const std::string&)> &broadcast_message);
 
 #endif //SIN_HANDLER_H
