@@ -16,6 +16,11 @@ add_executable(SinServer src/main/cpp/main.cpp
         src/main/cpp/ws/websocket_server.h
         src/main/cpp/Config.h
         src/main/cpp/sin/sin_handler.cpp
-        src/main/cpp/sin/sin_handler.h)
+        src/main/cpp/sin/sin_handler.h
+        src/main/cpp/dtos/MessageType.cpp
+        src/main/cpp/dtos/MessageType.h
+        src/main/cpp/dtos/Task.h
+        src/main/cpp/dtos/Msg.h
+        src/main/cpp/dtos/JsonHelper.h)
 
 target_link_libraries(SinServer ${Boost_LIBRARIES} ${Asio_LIBRARIES} ${WebSocketPP_LIBRARIES})
