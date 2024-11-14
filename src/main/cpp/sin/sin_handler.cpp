@@ -33,9 +33,31 @@ Task sinOneStep(const Task &task) {
     return Task(task.input, newOutput, newTerm, task.step + 1, task.required_steps);
 }
 
+bool validateNewTaskMsg(const Msg &msg, const std::function<void(const Msg &)> &broadcast_message,
+                        const std::unordered_map<std::string, Msg> &activeTask) {
+    if (msg.id.empty()) {
+        broadcast_message(Msg("", MessageType::ERROR, Task(0, 0, 0, 0, 0), "Task id is null."));
+        return false;
+    }
+    if (activeTask.find(msg.id) != activeTask.end()) {
+        broadcast_message(Msg(msg.id, MessageType::ERROR, Task(0, 0, 0, 0, 0), "Task id already exists."));
+        return false;
+    }
+    Task task = msg.task;
+    if (task.input == 0 && task.output == 0 && task.term == 0 && task.step == 0 && task.required_steps == 0) {
+        broadcast_message(Msg(msg.id, MessageType::ERROR, Task(0, 0, 0, 0, 0), "Task is null."));
+        return false;
+    }
+    if (task.output != 0 || task.step != 0 || task.required_steps <= 0) {
+        broadcast_message(Msg(msg.id, MessageType::ERROR, Task(0, 0, 0, 0, 0), "Invalid task parameters."));
+        return false;
+    }
+    return true;
+}
 
+void process_all_steps(const Msg &msg, const std::function<void(const Msg &)> &broadcast_message) {
+    // if(validateNewTaskMsg())
 
-void process_all_steps(const Msg &msg, const std::function<void(const std::string &)> &broadcast_message) {
     auto current_task = msg.task;
     auto start = std::chrono::steady_clock::now();
 
@@ -44,11 +66,11 @@ void process_all_steps(const Msg &msg, const std::function<void(const std::strin
 
         auto now = std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count() >= 1000) {
-            broadcast_message(Msg(msg.id, MessageType::PARTIAL, current_task, "").toString());
+            broadcast_message(Msg(msg.id, MessageType::PARTIAL, current_task, ""));
             start = now;
         }
     }
-    broadcast_message(Msg(msg.id, MessageType::RESULT, current_task, "").toString());
+    broadcast_message(Msg(msg.id, MessageType::RESULT, current_task, ""));
 }
 
 void process_and_broadcast(const std::string &message,
@@ -60,7 +82,7 @@ void process_and_broadcast(const std::string &message,
         id = msg.id;
 
         // Call process_one_step
-        process_all_steps(msg, broadcast_message);
+        process_all_steps(msg, [&](const Msg &msg) { broadcast_message(msg.toString()); });
     } catch (const std::exception &e) {
         broadcast_message(Msg(id, MessageType::ERROR, Task(0, 0, 0, 0, 0), e.what()).toString());
     }
