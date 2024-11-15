@@ -7,20 +7,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Boost REQUIRED)
 find_package(WebSocketPP REQUIRED)
 
-include_directories(${Boost_INCLUDE_DIRS})
-include_directories("/usr/include/asio")
-include_directories(${WebSocketPP_INCLUDE_DIRS})
-
 add_executable(SinServer src/main/cpp/main.cpp
         src/main/cpp/ws/websocket_server.cpp
         src/main/cpp/ws/websocket_server.h
         src/main/cpp/Config.h
         src/main/cpp/sin/sin_handler.cpp
         src/main/cpp/sin/sin_handler.h
-        src/main/cpp/dtos/MessageType.cpp
         src/main/cpp/dtos/MessageType.h
         src/main/cpp/dtos/Task.h
         src/main/cpp/dtos/Msg.h
         src/main/cpp/dtos/JsonHelper.h)
-
-target_link_libraries(SinServer ${Boost_LIBRARIES} ${Asio_LIBRARIES} ${WebSocketPP_LIBRARIES})
