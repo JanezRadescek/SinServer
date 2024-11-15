@@ -3,19 +3,24 @@
 //
 
 #include "sin_handler.h"
+
+#include <set>
+
 #include "../dtos/Msg.h"
 #include "../dtos/Task.h"
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
 
-#include <websocketpp/server.hpp>
+struct MsgComparator {
+    bool operator()(const Msg &lhs, const Msg &rhs) const {
+        return lhs.id < rhs.id;
+    }
+};
 
+std::set<Msg, MsgComparator> activeMessages;
+std::mutex activeMessagesMutex;
 
-void on_msg(server *s, websocketpp::connection_hdl hdl, server::message_ptr msg) {
-    std::string message = msg->get_payload();
-    std::cout << "Received message: " << message << std::endl;
-    int number = std::stoi(message);
-    message = std::to_string(sin(number));
-    s->send(hdl, message, msg->get_opcode());
-}
 
 double sinOneTerm(double term, double x, int n) {
     return term * -x * x / ((2 * n) * (2 * n + 1));
@@ -73,8 +78,31 @@ void process_all_steps(const Msg &msg, const std::function<void(const Msg &)> &b
     broadcast_message(Msg(msg.id, MessageType::RESULT, current_task, ""));
 }
 
-void process_and_broadcast(const std::string &message,
-                           const std::function<void(const std::string &)> &broadcast_message) {
+void process_msg(const Msg &msg, const std::function<void(const Msg &)> &broadcast_message) {
+    if (msg.type == MessageType::NEW_TASK) {
+        {
+            std::lock_guard lock(activeMessagesMutex);
+            if (activeMessages.find(msg) != activeMessages.end()) {
+                broadcast_message(Msg(msg.id, MessageType::ERROR, Task(0, 0, 0, 0, 0), "Task id already exists."));
+                return;
+            }
+            activeMessages.insert(msg);
+        }
+        try {
+            process_all_steps(msg, broadcast_message);
+        } catch (const std::exception &e) {
+            broadcast_message(Msg(msg.id, MessageType::ERROR, Task(0, 0, 0, 0, 0), e.what()));
+        } {
+            std::lock_guard lock(activeMessagesMutex);
+            activeMessages.erase(msg);
+        }
+    } else {
+        broadcast_message(Msg(msg.id, MessageType::ERROR, Task(0, 0, 0, 0, 0), "Invalid message type."));
+    }
+}
+
+void on_message_process(const std::string &message,
+                        const std::function<void(const std::string &)> &broadcast_message) {
     std::string id = "";
     try {
         // Convert input string to Msg object
@@ -82,8 +110,19 @@ void process_and_broadcast(const std::string &message,
         id = msg.id;
 
         // Call process_one_step
-        process_all_steps(msg, [&](const Msg &msg) { broadcast_message(msg.toString()); });
+        process_all_steps(msg, [&](const Msg &result_msg) { broadcast_message(result_msg.toString()); });
     } catch (const std::exception &e) {
         broadcast_message(Msg(id, MessageType::ERROR, Task(0, 0, 0, 0, 0), e.what()).toString());
+    }
+}
+
+void on_open_process(const std::function<void(const std::string &)> &send_message) {
+    boost::uuids::uuid uuid = boost::uuids::random_generator()();
+    std::string uuid_str = boost::uuids::to_string(uuid);
+    send_message(Msg(uuid_str, MessageType::ID, Task(0, 0, 0, 0, 0), "Server is ready!").toString());
+
+    std::lock_guard lock(activeMessagesMutex);
+    for (const Msg &msg: activeMessages) {
+        send_message(msg.toString());
     }
 }

@@ -31,7 +31,7 @@ void on_message(websocketpp::connection_hdl, server::message_ptr msg) {
     std::cout << "Received message: " << message << std::endl;
 
     std::thread([message]() {
-        process_and_broadcast(message, broadcast_message);
+        on_message_process(message, broadcast_message);
     }).detach();
 }
 
@@ -47,6 +47,12 @@ void on_http(websocketpp::connection_hdl hdl) {
 }
 
 void on_open(websocketpp::connection_hdl hdl) {
+    std::thread([hdl]() {
+        on_open_process([hdl](const std::string &message) {
+            ws_server.send(hdl, message, websocketpp::frame::opcode::text);
+        });
+    }).detach();
+
     std::lock_guard lock(connections_mutex);
     connections.insert(hdl);
 }

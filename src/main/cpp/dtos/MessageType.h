@@ -14,7 +14,8 @@ enum class MessageType {
     RESULT,
     CANCEL,
     CANCELED,
-    ERROR
+    ERROR,
+    ID
 };
 
 
@@ -32,6 +33,8 @@ inline std::string toString(MessageType type) {
             return "CANCELED";
         case MessageType::ERROR:
             return "ERROR";
+        case MessageType::ID:
+            return "ID";
     }
 }
 
@@ -53,6 +56,9 @@ inline MessageType typeFromString(const std::string &str) {
     }
     if (str == "ERROR") {
         return MessageType::ERROR;
+    }
+    if (str == "ID") {
+        return MessageType::ID;
     }
     throw std::invalid_argument("Unknown MessageType string: " + str);
 }
