@@ -35,6 +35,8 @@ docker run -p 8080:8080 sinserver
 
 ## Java
 
+Java API is not compatible with the c++ API!
+
 The application can be packaged using:
 
 ```shell script
