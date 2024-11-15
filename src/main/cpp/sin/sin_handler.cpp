@@ -33,7 +33,7 @@ Task sinOneStep(const Task &task) {
     int step = task.step;
     double newTerm = step == 0 ? x : sinOneTerm(term, x, step);
     double newOutput = task.output + newTerm;
-    std::this_thread::sleep_for(std::chrono::milliseconds(300)); // Simulate long processing time
+    std::this_thread::sleep_for(std::chrono::milliseconds(3000)); // Simulate long processing time
     std::cout << "Input: " << x << ", Step: " << step << ", New value: " << newOutput << std::endl;
     return Task(task.input, newOutput, newTerm, task.step + 1, task.required_steps);
 }
@@ -69,6 +69,15 @@ void process_all_steps(const Msg &msg, const std::function<void(const Msg &)> &b
     while (current_task.step < current_task.required_steps) {
         current_task = sinOneStep(current_task);
 
+        {
+            std::lock_guard lock(activeMessagesMutex);
+            if (activeMessages.find(msg) == activeMessages.end()) {
+                return;
+            }
+            activeMessages.erase(msg);
+            activeMessages.insert(Msg(msg.id, MessageType::PARTIAL, current_task, ""));
+        }
+
         auto now = std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count() >= 1000) {
             broadcast_message(Msg(msg.id, MessageType::PARTIAL, current_task, ""));
@@ -78,26 +87,50 @@ void process_all_steps(const Msg &msg, const std::function<void(const Msg &)> &b
     broadcast_message(Msg(msg.id, MessageType::RESULT, current_task, ""));
 }
 
-void process_msg(const Msg &msg, const std::function<void(const Msg &)> &broadcast_message) {
-    if (msg.type == MessageType::NEW_TASK) {
-        {
-            std::lock_guard lock(activeMessagesMutex);
-            if (activeMessages.find(msg) != activeMessages.end()) {
-                broadcast_message(Msg(msg.id, MessageType::ERROR, Task(0, 0, 0, 0, 0), "Task id already exists."));
-                return;
-            }
-            activeMessages.insert(msg);
+void process_new_task(const Msg &msg, const std::function<void(const Msg &)> &broadcast_message) {
+    {
+        std::lock_guard lock(activeMessagesMutex);
+        if (activeMessages.find(msg) != activeMessages.end()) {
+            broadcast_message(Msg(msg.id, MessageType::ERROR, Task(0, 0, 0, 0, 0), "Task id already exists."));
+            return;
         }
-        try {
-            process_all_steps(msg, broadcast_message);
-        } catch (const std::exception &e) {
-            broadcast_message(Msg(msg.id, MessageType::ERROR, Task(0, 0, 0, 0, 0), e.what()));
-        } {
-            std::lock_guard lock(activeMessagesMutex);
-            activeMessages.erase(msg);
-        }
+        activeMessages.insert(msg);
+    }
+    try {
+        process_all_steps(msg, broadcast_message);
+    } catch (const std::exception &e) {
+        broadcast_message(Msg(msg.id, MessageType::ERROR, Task(0, 0, 0, 0, 0), e.what()));
+    }
+    {
+        std::lock_guard lock(activeMessagesMutex);
+        activeMessages.erase(msg);
+    }
+}
+
+void process_cancel(const Msg &msg, const std::function<void(const Msg &)> &broadcast_message) {
+    std::lock_guard lock(activeMessagesMutex);
+    auto it = activeMessages.find(msg);
+    if (it != activeMessages.end()) {
+        Msg canceled_msg = *it;
+        canceled_msg.type = MessageType::CANCELED;
+        broadcast_message(canceled_msg);
+        activeMessages.erase(it);
     } else {
-        broadcast_message(Msg(msg.id, MessageType::ERROR, Task(0, 0, 0, 0, 0), "Invalid message type."));
+        broadcast_message(Msg(msg.id, MessageType::ERROR, Task(0, 0, 0, 0, 0), "Task id not found."));
+    }
+}
+
+void process_msg(const Msg &msg, const std::function<void(const Msg &)> &broadcast_message) {
+    switch (msg.type) {
+        case MessageType::NEW_TASK:
+            process_new_task(msg, broadcast_message);
+        break;
+        case MessageType::CANCEL:
+            process_cancel(msg, broadcast_message);
+        break;
+        default:
+            broadcast_message(Msg(msg.id, MessageType::ERROR, Task(0, 0, 0, 0, 0), "Invalid message type."));
+        break;
     }
 }
 
@@ -110,7 +143,7 @@ void on_message_process(const std::string &message,
         id = msg.id;
 
         // Call process_one_step
-        process_all_steps(msg, [&](const Msg &result_msg) { broadcast_message(result_msg.toString()); });
+        process_msg(msg, [&](const Msg &result_msg) { broadcast_message(result_msg.toString()); });
     } catch (const std::exception &e) {
         broadcast_message(Msg(id, MessageType::ERROR, Task(0, 0, 0, 0, 0), e.what()).toString());
     }
