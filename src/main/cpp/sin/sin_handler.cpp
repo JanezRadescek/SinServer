@@ -33,7 +33,7 @@ Task sinOneStep(const Task &task) {
     int step = task.step;
     double newTerm = step == 0 ? x : sinOneTerm(term, x, step);
     double newOutput = task.output + newTerm;
-    std::this_thread::sleep_for(std::chrono::milliseconds(3000)); // Simulate long processing time
+    std::this_thread::sleep_for(std::chrono::milliseconds(300)); // Simulate long processing time
     std::cout << "Input: " << x << ", Step: " << step << ", New value: " << newOutput << std::endl;
     return Task(task.input, newOutput, newTerm, task.step + 1, task.required_steps);
 }
