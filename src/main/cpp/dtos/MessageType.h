@@ -35,6 +35,8 @@ inline std::string toString(MessageType type) {
             return "ERROR";
         case MessageType::ID:
             return "ID";
+        default:
+            throw std::invalid_argument("Unknown MessageType");
     }
 }
 
